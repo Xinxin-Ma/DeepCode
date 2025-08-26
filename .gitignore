@@ -66,6 +66,6 @@ run_indexer_with_filtering.py
 memory-bank/
 
 # mcp agent files
-mcp_agent.*.yaml
+mcp_agent.secrets.yaml
 mcp-agent*.jsonl
-deepcode_lab/*
+#deepcode_lab/*
