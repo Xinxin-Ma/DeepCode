@@ -64,3 +64,8 @@ run_indexer_with_filtering.py
 
 # Cline files
 memory-bank/
+
+# mcp agent files
+mcp_agent.*.yaml
+mcp-agent*.jsonl
+deepcode_lab/*
