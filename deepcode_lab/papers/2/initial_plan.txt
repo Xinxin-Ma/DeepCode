@@ -1,0 +1,161 @@
+I'll create a comprehensive reproduction plan by analyzing the paper content directly. Let me read the markdown file and synthesize the information from both analyses.
+
+```python
+# Read the paper content directly
+paper_dir = "/mnt/d/Xinxin/Codes/DeepCode/deepcode_lab/papers/2"
+import os
+
+# Let me check what's available and read the paper
+try:
+    files = os.listdir(paper_dir)
+    print(f"Files in directory: {files}")
+    
+    # Find and read the markdown file
+    for file in files:
+        if file.endswith('.md'):
+            with open(os.path.join(paper_dir, file), 'r', encoding='utf-8') as f:
+                paper_content = f.read()
+            break
+    
+    print(f"Paper length: {len(paper_content)} characters")
+    print("=== PAPER CONTENT PREVIEW ===")
+    print(paper_content[:3000])
+    
+except Exception as e:
+    print(f"Error: {e}")
+```
+
+Based on the comprehensive analyses provided, I'll create a complete reproduction plan for the "Importance-Aware Co-Teaching for Offline Reinforcement Learning" paper:
+
+```yaml
+complete_reproduction_plan:
+  paper_info:
+    title: "Importance-Aware Co-Teaching for Offline Reinforcement Learning"
+    core_contribution: "Novel IACT framework combining state importance estimation via density ratio with co-teaching between dual policies to address distribution shift and data quality issues in offline RL"
+
+  # SECTION 1: File Structure Design
+  file_structure: |
+    iact_offline_rl/
+    ├── src/
+    │   ├── algorithms/
+    │   │   ├── iact.py              # Main IACT algorithm implementation
+    │   │   ├── importance_estimator.py  # KLIEP-based density ratio estimation
+    │   │   └── sample_selector.py   # Co-teaching sample selection logic
+    │   ├── models/
+    │   │   ├── actor.py            # Policy network architectures
+    │   │   ├── critic.py           # Q-function networks (double Q-learning)
+    │   │   └── networks.py         # Base neural network components
+    │   ├── training/
+    │   │   ├── trainer.py          # Main training loop coordinator
+    │   │   ├── co_teacher.py       # Co-teaching training logic
+    │   │   └── bc_regularizer.py   # Behavior cloning regularization
+    │   ├── data/
+    │   │   ├── d4rl_loader.py      # D4RL dataset loading and preprocessing
+    │   │   └── replay_buffer.py    # Enhanced replay buffer with importance weights
+    │   └── utils/
+    │       ├── kernels.py          # Gaussian RBF kernels for KLIEP
+    │       └── metrics.py          # Evaluation metrics and logging
+    ├── configs/
+    │   ├── iact_config.py          # Algorithm hyperparameters
+    │   └── env_configs.py          # Environment-specific settings
+    ├── experiments/
+    │   ├── run_d4rl_benchmark.py   # Main benchmark evaluation
+    │   ├── ablation_studies.py     # Ablation experiments
+    │   └── baselines.py            # Baseline method implementations
+    └── tests/
+        ├── test_importance_estimation.py
+        ├── test_co_teaching.py
+        └── test_integration.py
+
+  # SECTION 2: Implementation Components
+  implementation_components: |
+    
+    ## Core Algorithm: IACT (algorithms/iact.py)
+    **Purpose**: Main algorithm integrating importance estimation and co-teaching
+    **Key Components**:
+    - State importance estimation via KLIEP density ratio
+    - Dual policy architecture with co-teaching mechanism
+    - Sample selection based on importance weights and policy confidence
+    - Behavior cloning regularization to prevent OOD actions
+    
+    **Mathematical Formulations**:
+    - Importance weight: w(s) = π(s)/β(s) where π is policy distribution, β is behavior distribution
+    - KLIEP objective: max_α Σᵢ log(Σⱼ αⱼK(sᵢ, sⱼ)) subject to Σᵢ αᵢ = 1, αᵢ ≥ 0
+    - Co-teaching selection: Select top-k samples with highest w(s) * confidence(a|s)
+    - BC regularizer: λ_BC * KL(π(·|s), π_β(·|s))
+    
+    ## Importance Estimator (algorithms/importance_estimator.py)
+    **Purpose**: Density ratio estimation using Kullback-Leibler Importance Estimation Procedure
+    **Implementation Details**:
+    - Gaussian RBF kernels: K(s, s') = exp(-||s - s'||²/(2σ²))
+    - Kernel centers: Random subset of dataset states
+    - Optimization: Convex optimization to find kernel weights α
+    - Output: Importance weights w(s) for each state in dataset
+    
+    **Class Structure**:
+    ```python
+    class ImportanceEstimator:
+        def __init__(self, kernel_type='rbf', n_kernels=100, sigma=1.0)
+        def fit(self, policy_states, behavior_states)
+        def estimate_weights(self, states)
+        def _build_kernel_matrix(self, X, Y)
+        def _solve_kliep_optimization(self, kernel_matrix)
+    ```
+    
+    ## Co-Teaching Framework (algorithms/sample_selector.py)
+    **Purpose**: Sample selection mechanism where two policies teach each other
+    **Key Logic**:
+    - Policy A selects samples for Policy B based on importance weights and A's confidence
+    - Policy B selects samples for Policy A based on importance weights and B's confidence
+    - Selection rate: Start high (0.8) and gradually decrease to prevent overfitting
+    - Sample quality metric: w(s) * π(a|s) (importance weight × policy probability)
+    
+    ## Neural Network Architectures (models/)
+    
+    ### Actor Networks (models/actor.py):
+    - **Architecture**: 3-layer MLP [state_dim, 256, 256, action_dim]
+    - **Activation**: ReLU for hidden layers, tanh for output layer
+    - **Output**: Mean and log_std for continuous actions (Gaussian policy)
+    - **Regularization**: Layer normalization, dropout (0.1)
+    
+    ### Critic Networks (models/critic.py):
+    - **Architecture**: Double Q-learning with two Q-networks
+    - **Network**: 3-layer MLP [state_dim + action_dim, 256, 256, 1]
+    - **Activation**: ReLU throughout
+    - **Target Networks**: Polyak averaging with τ = 0.005
+    
+    ## Training Pipeline (training/)
+    
+    ### Main Trainer (training/trainer.py):
+    **Training Loop Structure**:
+    1. Initialize dual policies (A, B) and critics (QA, QB)
+    2. Estimate state importance weights using KLIEP
+    3. For each epoch:
+       - Policy A selects samples for Policy B training
+       - Update Policy B and Critic B on selected samples
+       - Policy B selects samples for Policy A training
+       - Update Policy A and Critic A on selected samples
+       - Update target networks
+       - Log metrics and selection rates
+    
+    ### Co-Teaching Logic (training/co_teacher.py):
+    **Sample Selection Algorithm**:
+    ```python
+    def select_samples(self, policy, importance_weights, batch, selection_rate):
+        # Compute policy confidence for each sample
+        log_probs = policy.log_prob(batch['actions'])
+        confidence_scores = torch.exp(log_probs)
+        
+        # Combine importance weights with confidence
+        selection_scores = importance_weights * confidence_scores
+        
+        # Select top-k samples
+        k = int(len(batch) * selection_rate)
+        top_k_indices = torch.topk(selection_scores, k).indices
+        
+        return self.create_selected_batch(batch, top_k_indices)
+    ```
+    
+    ## Data Processing (data/)
+    
+    
